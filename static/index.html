@@ -56,24 +56,44 @@
         var reset = "\x1b[39;49m";
         var blue = "\x1b[1m\x1b[38;5;63m";
 
+        $.extend({
+            getUrlVars: function() {
+                var vars = [],
+                    hash;
+                var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+                for (var i = 0; i < hashes.length; i++) {
+                    hash = hashes[i].split('=');
+                    vars.push(hash[0]);
+                    vars[hash[0]] = hash[1];
+                }
+                return vars;
+            },
+            getUrlVar: function(name) {
+                return $.getUrlVars()[name];
+            }
+        });
 
         $(function() {
             authed = false;
             proto = "ws://";
 
-            if(window.location.href.indexOf("https://") !== -1) {
+            if (window.location.href.indexOf("https://") !== -1) {
                 proto = "wss://";
             }
 
             websocket = new WebSocket(proto + window.location.host + "/ws");
 
             websocket.onopen = function(evt) {
+                if (($.getUrlVar("ip") != null) && ($.getUrlVar("port") != null) && ($.getUrlVar("password") != null)) {
+                    $("#ip").val($.getUrlVar("ip"));
+                    $("#port").val($.getUrlVar("port"));
+                    $("#password").val($.getUrlVar("password"));
 
-
-
-                $("#getInfo").modal({
-                    show: true
-                });
+                } else {
+                    $('#getInfo').modal({
+                        show: true
+                    });
+                }
 
                 term = new Terminal({
                     cols: 100,
@@ -103,7 +123,7 @@
                 });
 
                 term.on('title', function(title) {
-                    if(title.indexOf("[ERROR]") !== -1) {
+                    if (title.indexOf("[ERROR]") !== -1) {
                         $("#term-title").text(title);
                         $("#term-title").css("color", "red");
                     } else {
