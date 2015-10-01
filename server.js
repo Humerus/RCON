@@ -7,7 +7,7 @@ var http = require("http"),
     Rcon = require('rcon'),
     WebSocketServer = require('ws').Server,
     morgan = require('morgan');
-    app = express(),
+app = express(),
     server = http.createServer(app),
     wss = new WebSocketServer({
         server: server,
@@ -22,8 +22,11 @@ app.use(session({
     saveUninitialized: true
 }));
 
-app.use(morgan("combined"));
+morgan.token('remote-addr', function(req, res) {
+    return req.headers['x-forwarded-for'] || req.ip;
+});
 
+app.use(morgan("combined"));
 app.use(express.static('static'));
 
 app.get('/', function(req, res) {
@@ -31,7 +34,7 @@ app.get('/', function(req, res) {
 });
 
 wss.on("connection", function(ws) {
-    var wsip = ws._socket.remoteAddress;
+    var wsip = ws.upgradeReq.headers["x-forwarded-for"] || ws._socket.remoteAddress;
     ws.on("message", function(msg) {
         if (isJson(msg)) {
             var stuff = JSON.parse(msg);
