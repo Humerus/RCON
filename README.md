@@ -1,4 +1,4 @@
-RCON -- *The easiest and more natural RCON client*
+RCON -- *The easiest and most natural RCON client*
 ====
 
 ## Quickly and easily connect to any server running RCON
