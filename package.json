@@ -1,0 +1,19 @@
+{
+    "name": "RCON",
+    "version": "0.0.1",
+    "description": "The Best Web Based RCON Client",
+    "main": "server.js",
+    "scripts": {},
+    "author": "Humerus",
+    "license": "GPL-3.0",
+    "dependencies": {
+        "express": "^4.13.3",
+        "express-session": "^1.11.3",
+        "ip": "^0.3.3",
+        "request": "^2.61.0",
+        "ssh2": "^0.4.10",
+        "rcon": "*",
+        "ws": "*",
+        "morgan": "*"
+    }
+}

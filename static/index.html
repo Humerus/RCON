@@ -1,0 +1,226 @@
+<html>
+
+<head>
+
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/themes/smoothness/jquery-ui.css" />
+    <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+    <script src="//cdn.rawgit.com/chjj/term.js/0b10f6c55d5113d50d0ff94b6c38a46375a5f9a5/src/term.js"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <title>RCON</title>
+    <style>
+        body {
+            background-color: #000;
+        }
+
+        .terminal {
+            border: #000 solid 5px;
+            font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;
+            font-size: 11px;
+            color: #f0f0f0;
+            background: #000;
+        }
+
+        .terminal-cursor {
+            color: #000;
+            background: #f0f0f0;
+        }
+
+        #term-startline {
+            color: white
+        }
+
+        #term-startlinewrap {
+            bottom: 34px;
+            position: fixed;
+            color: #f0f0f0;
+        }
+
+        #term-title {
+            //color: #99CCFF;
+        }
+
+        #caret {
+            color: #99CCFF;
+        }
+
+        #container-terminal {
+            bottom: 38px;
+        }
+    </style>
+
+    <script type="text/javascript">
+        var red = "\x1b[31;1m";
+        var green = "\x1b[32;1m";
+        var reset = "\x1b[39;49m";
+        var blue = "\x1b[1m\x1b[38;5;63m";
+
+
+        $(function() {
+            authed = false;
+            proto = "ws://";
+
+            if(window.location.href.indexOf("https://") !== -1) {
+                proto = "wss://";
+            }
+
+            websocket = new WebSocket(proto + window.location.host + "/ws");
+
+            websocket.onopen = function(evt) {
+
+
+
+                $("#getInfo").modal({
+                    show: true
+                });
+
+                term = new Terminal({
+                    cols: 100,
+                    rows: Math.floor(($(window).height() - 220) / 11),
+                    screenKeys: true,
+                    useStyle: true,
+                    cursorBlink: true,
+                });
+
+                term.on("data", function(data) {
+                    var firstText = $('#term-startline').text();
+                    if (data == "\x7f") {
+                        $('#term-startline').text(firstText.substr(0, firstText.length - 1));
+                        term.lines[term.lines.length - 1][term.x - 1] = [term.eraseAttr(), " "];
+                        term.cursorBackward([1]);
+                    } else if (data == "\r") {
+                        term.write(data + "\n" + reset);
+                        websocket.send(JSON.stringify({
+                            type: "sendMessage",
+                            msg: firstText
+                        }));
+                        $('#term-startline').text("");
+                    } else {
+                        term.write(blue + data);
+                        $('#term-startline').text(firstText + data);
+                    }
+                });
+
+                term.on('title', function(title) {
+                    if(title.indexOf("[ERROR]") !== -1) {
+                        $("#term-title").text(title);
+                        $("#term-title").css("color", "red");
+                    } else {
+                        $("#term-title").text(title);
+                        $("#term-title").css("color", "green");
+                    }
+                });
+
+                term.open(document.getElementById('container-terminal'));
+                websocket.onmessage = function(evt) {
+                    //console.log(evt);
+                    if (isJson(evt.data)) {
+                        var stuff = JSON.parse(evt.data);
+                        var type = stuff.type;
+                        var msg = stuff.msg;
+                        switch (type) {
+                            case "sessionConnected":
+                                term.emit("title", msg);
+                                break;
+                            case "authed":
+                                if (msg) {
+                                    authed = true;
+                                    term.emit("title", "You are now authenticated!");
+                                } else {
+                                    authed = false;
+                                    term.emit("title", "Authentication failed!");
+                                }
+                                break;
+                            case "response":
+                                term.write(msg + "\r\n");
+                                break;
+                            case "sessionClosed":
+                                authed = false;
+                                term.emit("title", "[ERROR] " + msg);
+                                break;
+                            case "notConnected":
+                                term.emit("title", msg);
+                                break;
+                            case "connected":
+                                term.emit("title", msg);
+                                break;
+                            case "error":
+                                authed = false;
+                                term.emit("title", "[ERROR] " + msg);
+                                break;
+                        }
+                    }
+                }
+
+                setInterval(function() {
+                    if (authed) {
+                        websocket.send(JSON.stringify({
+                            type: "checkSession"
+                        }));
+                    }
+                }, 10000);
+
+                websocket.onclose = function(evt) {
+                    term.write("Session terminated");
+                    term.destroy();
+                }
+                websocket.onerror = function(evt) {
+                    if (typeof console.log == "function") {
+                        console.log(evt)
+                    }
+                }
+            }
+        });
+
+        function startSession() {
+            websocket.send(JSON.stringify({
+                type: "createSession",
+                msg: {
+                    ip: $("#ip").val(),
+                    port: $("#port").val(),
+                    password: $("#password").val()
+                }
+            }));
+        }
+
+        function isJson(str) {
+            try {
+                JSON.parse(str);
+            } catch (e) {
+                return false;
+            }
+            return true;
+        }
+    </script>
+</head>
+<div id="container-terminal">
+    <div id="term-title"></div>
+</div>
+<div id="term-startlinewrap" style="display:none;">
+    <span id="caret">></span>
+    <span id="term-startline"></span>
+</div>
+<div class="modal fade" id="getInfo">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+                <h4 class="modal-title">Server Connection Information</h4>
+            </div>
+            <div class="modal-body">
+                Server IP:
+                <input type="text" name="ip" id="ip">
+                <br>Server Port:
+                <input type="text" name="port" id="port">
+                <br>Server Password:
+                <input type="text" name="password" id="password">
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn btn-primary" id="doStuff" data-dismiss="modal" aria-hidden="true" onclick="startSession();">Connect to console!</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+</html>
