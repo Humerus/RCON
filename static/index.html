@@ -17,9 +17,12 @@
         .terminal {
             border: #000 solid 5px;
             font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;
-            font-size: 11px;
+            font-size: 14px;
             color: #f0f0f0;
             background: #000;
+            width: 100%;
+            height: 100%;
+            bottom: 0px;
         }
 
         .terminal-cursor {
@@ -38,7 +41,7 @@
         }
 
         #term-title {
-            //color: #99CCFF;
+            /*color: #99CCFF;*/
         }
 
         #caret {
@@ -46,7 +49,21 @@
         }
 
         #container-terminal {
-            bottom: 38px;
+            /*bottom: 38px;*/
+        }
+
+        .footer {
+            height: 34px;
+            width: 100%;
+            position: fixed;
+            bottom: 0pt;
+            left: 0pt;
+        }
+
+        .footer_contents {
+            height: auto;
+            width: 100%;
+            margin: auto;
         }
     </style>
 
@@ -94,19 +111,21 @@
                         show: true
                     });
                 }
-
+                var sizes = size();
                 term = new Terminal({
-                    cols: 100,
-                    rows: Math.floor(($(window).height() - 220) / 11),
+                    //cols: 100,
+                    //rows: Math.floor(($(window).height() - 220) / 11),
+                    cols: sizes.x - 50,
+                    rows: sizes.y - 17,
                     screenKeys: true,
-                    useStyle: true,
+                    //useStyle: true,
                     cursorBlink: true,
                 });
 
                 term.on("data", function(data) {
-                    var firstText = $('#term-startline').text();
+                    var firstText = $('#command').val();
                     if (data == "\x7f") {
-                        $('#term-startline').text(firstText.substr(0, firstText.length - 1));
+                        $('#command').val(firstText.substr(0, firstText.length - 1));
                         term.lines[term.lines.length - 1][term.x - 1] = [term.eraseAttr(), " "];
                         term.cursorBackward([1]);
                     } else if (data == "\r") {
@@ -115,10 +134,10 @@
                             type: "sendMessage",
                             msg: firstText
                         }));
-                        $('#term-startline').text("");
+                        $('#command').val("");
                     } else {
                         term.write(blue + data);
-                        $('#term-startline').text(firstText + data);
+                        $('#command').val(firstText + data);
                     }
                 });
 
@@ -191,7 +210,37 @@
                     }
                 }
             }
+
+            $('#command').keyup(function(e) {
+                //console.log(e, String.fromCharCode(e.which));
+                if (e.which == 8) {
+                    term.write(String.fromCharCode(e.which));
+                } else if (e.which == 13) {
+                    sendCommand();
+                } else {
+                    if (e.shiftKey) {
+                        term.write(blue + String.fromCharCode(e.which));
+                    } else {
+                        term.write(blue + String.fromCharCode(e.which).toLowerCase());
+                    }
+                }
+                term.focus();
+            });
+            setTimeout(function() {
+                jQuery('html,body').animate({
+                    scrollTop: 0
+                }, 0);
+            }, 500);
         });
+
+        function sendCommand() {
+            term.write("\r\n" + reset);
+            websocket.send(JSON.stringify({
+                type: "sendMessage",
+                msg: $("#command").val()
+            }));
+            $("#command").val("");
+        }
 
         function startSession() {
             websocket.send(JSON.stringify({
@@ -212,35 +261,93 @@
             }
             return true;
         }
+
+        function size() {
+            function getCharSize() {
+                var $span = $("<span>", {
+                    text: "qwertyuiopasdfghjklzxcvbnm"
+                });
+                $('#container-terminal').append($span);
+                var size = {
+                    width: $span.outerWidth() / 26,
+                    height: $span.outerHeight()
+                };
+                $span.remove();
+                return size;
+            }
+
+            function getwindowSize() {
+                var e = window,
+                    a = 'inner';
+                if (!('innerWidth' in window)) {
+                    a = 'client';
+                    e = document.documentElement || document.body;
+                }
+                return {
+                    width: e[a + 'Width'],
+                    height: e[a + 'Height']
+                };
+            }
+            var charSize = getCharSize();
+            var windowSize = getwindowSize();
+            return {
+                x: Math.floor(windowSize.width / charSize.width),
+                y: Math.floor(windowSize.height / charSize.height)
+            };
+        }
     </script>
 </head>
-<div id="container-terminal">
-    <div id="term-title"></div>
-</div>
-<div id="term-startlinewrap" style="display:none;">
-    <span id="caret">></span>
-    <span id="term-startline"></span>
-</div>
-<div class="modal fade" id="getInfo">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
-                <h4 class="modal-title">Server Connection Information</h4>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-8">
+                <div id="container-terminal">
+                    <div id="term-title"></div>
+                </div>
             </div>
-            <div class="modal-body">
-                Server IP:
-                <input type="text" name="ip" id="ip">
-                <br>Server Port:
-                <input type="text" name="port" id="port">
-                <br>Server Password:
-                <input type="text" name="password" id="password">
-            </div>
-            <div class="modal-footer">
-                <a href="#" class="btn btn-primary" id="doStuff" data-dismiss="modal" aria-hidden="true" onclick="startSession();">Connect to console!</a>
+        </div>
+        <div class="row">
+            <div class="col-md-8">
+                <div id="term-startlinewrap" style="display:none;">
+                    <span id="caret">></span>
+                    <span id="term-startline"></span>
+                </div>
+                <div class="footer">
+                    <div class="footer_contents">
+                        <div class="input-group">
+                            <div class="input-group-addon">></div>
+                            <input type="text" placeholder="Command" style="width: 100%; height: 34px" id="command" />
+                            <span class="input-group-btn">
+                                <button type="submit" value="Send" id="send" class="btn btn-primary" onclick="sendCommand();">Send</button>
+                            </span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</div>
+    <div class="modal fade" id="getInfo">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+                    <h4 class="modal-title">Server Connection Information</h4>
+                </div>
+                <div class="modal-body">
+                    Server IP:
+                    <input type="text" name="ip" id="ip">
+                    <br>Server Port:
+                    <input type="text" name="port" id="port">
+                    <br>Server Password:
+                    <input type="text" name="password" id="password">
+                </div>
+                <div class="modal-footer">
+                    <a href="#" class="btn btn-primary" id="doStuff" data-dismiss="modal" aria-hidden="true" onclick="startSession();">Connect to console!</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
 
 </html>
