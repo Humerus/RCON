@@ -8,10 +8,13 @@
     <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
     <script src="//cdn.rawgit.com/chjj/term.js/0b10f6c55d5113d50d0ff94b6c38a46375a5f9a5/src/term.js"></script>
     <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RCON</title>
     <style>
         body {
             background-color: #000;
+            position: fixed;
+            overflow-y: scroll;
         }
 
         .terminal {
@@ -115,10 +118,10 @@
                 term = new Terminal({
                     //cols: 100,
                     //rows: Math.floor(($(window).height() - 220) / 11),
-                    cols: sizes.x - 50,
-                    rows: sizes.y - 17,
+                    cols: sizes.x - 15,
+                    rows: sizes.y - 15,
                     screenKeys: true,
-                    //useStyle: true,
+                    useStyle: true,
                     cursorBlink: true,
                 });
 
